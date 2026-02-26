@@ -14,6 +14,10 @@ model = genai.GenerativeModel("gemini-2.5-flash")
 
 @app.route('/')
 def home():
+    return send_from_directory('.', 'index.html')
+
+@app.route('/main')
+def main_page():
     return send_from_directory('.', 'main.html')
 
 @app.route("/health")
