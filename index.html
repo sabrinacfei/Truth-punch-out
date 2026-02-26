@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>選擇你的角色</title>
+  <style>
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      text-align: center;
+      padding: 20px;
+      background: linear-gradient(to bottom, #fff9f9, #e0f7fa);
+    }
+
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      color: #d63031;
+    }
+
+    .section {
+      margin-bottom: 20px;
+    }
+
+    .emoji-options {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .emoji-avatar {
+      font-size: 3rem;
+      padding: 20px;
+      cursor: pointer;
+      border: 3px solid transparent;
+      border-radius: 15px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .emoji-avatar:hover {
+      transform: scale(1.2);
+    }
+
+    .emoji-avatar.selected {
+      border-color: #d63031;
+      background: #ffecec;
+    }
+
+    video, canvas {
+      width: 200px;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 1.2em;
+      background-color: #d63031;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    input {
+      padding: 10px;
+      font-size: 1em;
+      width: 80%;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎮 角色建立</h1>
+
+  <div class="section">
+    <h3>1️⃣ 選擇一個角色 Emoji</h3>
+    <div class="emoji-options">
+      <div class="emoji-avatar" data-emoji="🐑">🐑</div>
+      <div class="emoji-avatar" data-emoji="🦁">🦁</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>或 📸 拍一張大頭照</h3>
+    <video id="camera" autoplay></video>
+    <br />
+    <button onclick="takePhoto()">📸 拍照</button>
+    <canvas id="snapshot" style="display:none;"></canvas>
+  </div>
+
+  <div class="section">
+    <h3>2️⃣ 輸入你的名字</h3>
+    <input type="text" id="userName" placeholder="你的名字" />
+  </div>
+
+  <div class="section">
+    <button onclick="startGame()">🚀 開始冒險！</button>
+  </div>
+
+  <script>
+    let selectedAvatar = null;
+    let photoData = null;
+
+    document.querySelectorAll('.emoji-avatar').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('.emoji-avatar').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedAvatar = el.dataset.emoji;
+        photoData = null;
+      });
+    });
+
+    const video = document.getElementById('camera');
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        alert("⚠️ 無法開啟攝影機，請使用 HTTPS 或允許權限");
+        console.error("Camera error:", err);
+      });
+
+    function takePhoto() {
+      const canvas = document.getElementById('snapshot');
+      canvas.style.display = 'block';
+      const ctx = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      photoData = canvas.toDataURL('image/png');
+      selectedAvatar = null;
+      document.querySelectorAll('.emoji-avatar').forEach(e => e.classList.remove('selected'));
+    }
+
+    function startGame() {
+      const name = document.getElementById('userName').value;
+      if (!name) return alert('請輸入名字');
+
+      const data = {
+        name,
+        avatar: selectedAvatar,
+        photo: photoData
+      };
+      localStorage.setItem('playerInfo', JSON.stringify(data));
+      window.location.href = 'main.html';
+    }
+  </script>
+</body>
+</html>

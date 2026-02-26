@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Truth PUNCH OUT!</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      text-align: center;
+      padding: 30px;
+      background: linear-gradient(to top, #e0f7fa, #ffffff);
+    }
+    h1 {
+      font-size: 3em;
+      color: #4a80ec;
+      margin-bottom: 20px;
+    }
+    .card {
+      max-width: 500px;
+      margin: auto;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+      padding: 30px;
+    }
+    input, textarea, button {
+      margin: 10px 0;
+      padding: 12px;
+      width: 90%;
+      border-radius: 10px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+    }
+    button {
+      background-color: #40a9ea;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      transition: transform 0.2s ease;
+    }
+    button:hover {
+      transform: scale(1.05);
+    }
+    .output-box {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 10px;
+      margin-top: 10px;
+      white-space: pre-wrap;
+      text-align: left;
+    }
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    .comment {
+      background: #ffeaea;
+      padding: 6px 10px;
+      margin-top: 6px;
+      border-radius: 10px;
+      text-align: left;
+      font-size: 0.95em;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+  </style>
+</head>
+<body>
+  <h1>🎮 Truth PUNCH OUT!</h1>
+  <div class="card">
+    <h3>Step 1：輸入你的困擾</h3>
+    <input type="text" id="lieInput" placeholder="請輸入你的困擾，例如：我感到沒有價值...">
+    <button id="searchButton">📨 傳送</button>
+
+    <h3>Step 2：真理經文（自動提供）</h3>
+    <div id="truthOutput" class="output-box">📖 等待輸入你的困擾...</div>
+
+    <h3>Step 3：我們一起來禱告（自動產生）</h3>
+    <textarea id="prayerInput" placeholder="禱告內容會自動生成..." rows="5"></textarea>
+
+    <h3>Step 4：分享感受或留言</h3>
+    <textarea id="commentInput" placeholder="分享你的感受或留言...（可加 emoji）" rows="2"></textarea>
+    <button id="submitButton">✨ 提交到小組牆</button>
+
+    <h3>👥 小組分享牆</h3>
+    <div id="shareBoard"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import {getFirestore,collection,addDoc,getDoc,doc,updateDoc,query,orderBy,serverTimestamp,onSnapshot} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+  
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-oI5ErPRkJkZK0hPo4Bfgav9YpK4iGYc",
+      authDomain: "punch-out-bf304.firebaseapp.com",
+      projectId: "punch-out-bf304",
+      storageBucket: "punch-out-bf304.appspot.com",
+      messagingSenderId: "930288317373",
+      appId: "1:930288317373:web:25ceb302521f22b77018d4"
+    };
+  
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+  
+    const playerInfo = JSON.parse(localStorage.getItem("playerInfo") || "null");
+    if (!playerInfo) {
+      alert("請先選擇角色與輸入名字！");
+      location.href = "index.html";
+    }
+
+    const userName = playerInfo.name;
+    const userPhoto = playerInfo.photo;
+    const userAvatar = playerInfo.avatar;
+
+    const lieInput = document.getElementById("lieInput");
+    const truthOutput = document.getElementById("truthOutput");
+    const prayerInput = document.getElementById("prayerInput");
+    const commentInput = document.getElementById("commentInput");
+    const searchButton = document.getElementById("searchButton");
+    const submitButton = document.getElementById("submitButton");
+    const board = document.getElementById("shareBoard");
+
+    searchButton.addEventListener("click", async () => {
+      const lie = lieInput.value.trim();
+      if (!lie) return;
+
+      truthOutput.textContent = "🔍 正在為你尋找真理經文...";
+      prayerInput.value = "⏳ 正在產生禱告文...";
+
+      try {
+        const res = await fetch("/api/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: lie })
+        });
+        const data = await res.json();
+        truthOutput.textContent = "📖 " + (data.verse || "⚠️ 未取得經文");
+        prayerInput.value = data.prayer || "";
+      } catch (err) {
+        truthOutput.textContent = "⚠️ 錯誤：" + err.message;
+        prayerInput.value = "";
+      }
+    });
+
+    submitButton.addEventListener("click", async () => {
+      const lie = lieInput.value.trim();
+      const truth = truthOutput.textContent.trim();
+      const prayer = prayerInput.value.trim();
+      const comment = commentInput.value.trim();
+      if (!lie || !truth || !prayer) return alert("請填寫完整內容");
+
+      await addDoc(collection(db, "truthWall"), {
+        user: userName,
+        avatar: userAvatar,
+        photo: userPhoto,
+        lie, truth, prayer, comment,
+        likes: 0,
+        comments: [],
+        timestamp: serverTimestamp()
+      });
+      lieInput.value = "";
+      commentInput.value = "";
+      truthOutput.textContent = "📖 等待輸入你的困擾...";
+      prayerInput.value = "";
+    });
+
+    const q = query(collection(db, "truthWall"), orderBy("timestamp", "desc"));
+    onSnapshot(q, snapshot => {
+      board.innerHTML = "";
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const id = docSnap.id;
+        const avatar = data.photo ? `<img src="${data.photo}" class="avatar">` : `<span class="avatar">${data.avatar || '👤'}</span>`;
+        let commentsHtml = "";
+        if (data.comments?.length) {
+          data.comments.forEach((c, i) => {
+            commentsHtml += `<div class='comment'><strong>${c.user}</strong>:${c.text} <button onclick="editComment('${id}', '${i}')">✏️</button> <button onclick="deleteComment('${id}',' ${i}')">🗑️</button></div>`;
+          });
+        }
+        board.innerHTML += `
+          <div class="output-box">
+            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+              ${avatar}${data.user}打破了困擾：
+            </div>
+            <div style="margin-left: 10px;">
+              <p>本來覺得 🙁：「${data.lie}」</p>
+              <p>✨ 真理經文：${data.truth}</p>
+              <p>🙏 禱告：${data.prayer}</p>
+              <p>💬 感受：${data.comment || "（未填寫）"}</p>
+            </div>
+            <div style="display: flex; align-items: center; margin-top: 1px; gap: 1px;">
+              <span style="font-size: 1.2em; cursor: pointer;" onclick="likePost('${id}')">👍 <span style="color: black;">${data.likes}</span></span>
+              <input id="comment-${id}" placeholder="輸入留言..." style="padding: 10px 14px; border-radius: 40px; border: 2px solid #ffd6d6; font-size: 1em; background-color: #fffafc;">
+              <button onclick="submitComment('${id}')" style="padding: 8px 14px; border-radius: 10px; background-color: #fd79a8; color: white; border: none; font-weight: bold;">送出</button>
+            </div>
+            <div style="margin-top: 30px;">${commentsHtml}</div>
+          </div>
+        `;
+      });
+    });
+
+    window.likePost = async id => {
+      const liked = JSON.parse(localStorage.getItem("likedPosts") || "[]");
+      if (liked.includes(id)) return alert("你已經按過讚囉！");
+      const ref = doc(db, "truthWall", id);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        await updateDoc(ref, { likes: snap.data().likes + 1 });
+        liked.push(id);
+        localStorage.setItem("likedPosts", JSON.stringify(liked));
+      }
+    };
+
+    window.submitComment = async id => {
+      const input = document.getElementById(`comment-${id}`);
+      if (!playerInfo.name || !input.value) return;
+      const ref = doc(db, "truthWall", id);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const updated = [...(snap.data().comments || []), { user: playerInfo.name, text: input.value }];
+        await updateDoc(ref, { comments: updated });
+        input.value = "";
+      }
+    };
+
+    window.editComment = async (id, idx) => {
+      const newText = prompt("請輸入新的留言內容（可加 emoji):");
+      if (newText === null) return;
+      const ref = doc(db, "truthWall", id);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const updated = snap.data().comments;
+        updated[idx].text = newText;
+        await updateDoc(ref, { comments: updated });
+      }
+    };
+
+    window.deleteComment = async (id, idx) => {
+      if (!confirm("確定要刪除這則留言嗎？")) return;
+      const ref = doc(db, "truthWall", id);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const updated = snap.data().comments;
+        updated.splice(idx, 1);
+        await updateDoc(ref, { comments: updated });
+      }
+    };
+  </script>
+</body>
+</html>
