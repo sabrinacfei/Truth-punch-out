@@ -17,6 +17,10 @@ model = genai.GenerativeModel("gemini-2.5-flash")
 def home():
     return send_from_directory('.', 'main.html')
 
+@app.route("/health")
+def health():
+    return "ok", 200
+
 @app.route("/api/search", methods=["POST"])
 def search():
     data = request.get_json()
