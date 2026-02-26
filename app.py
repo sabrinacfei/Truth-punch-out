@@ -8,8 +8,7 @@ import os
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app, resources={r"/api/search": {"origins": "*"}})
 
-api_key = os.getenv("GEMINI_API_KEY", "").strip()
-print("KEY repr:", repr(api_key))   
+api_key = os.getenv("GEMINI_API_KEY", "").strip()  
 genai.configure(api_key=api_key, transport="rest")
 model = genai.GenerativeModel("gemini-2.5-flash")
 
